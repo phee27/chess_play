@@ -1,0 +1,18 @@
+## Core ML libraries
+transformers
+accelerate
+datasets
+trl
+peft
+bitsandbytes
+
+# Chess-specific
+python-chess
+
+# Additional utilities
+wandb
+numpy
+pandas
+scikit-learn
+tqdm
+tensorboard
