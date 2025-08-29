@@ -24,6 +24,8 @@ import numpy as np
 # Assuming these are available in your environment
 from data_processing import load_chess_datasets
 from utils import chess_reward_function, get_stockfish_manager, cleanup_stockfish
+import chess
+import chess.engine
 
 # logging.basicConfig(level=logging.INFO)
 # logger = logging.getLogger(__name__)
@@ -163,7 +165,7 @@ def main():
         'model_name': "meta-llama/Llama-3.1-8B-Instruct",
         'data_path': "data/stockfish_evaluations.jsonl",
         # 'output_dir': "/workspace/chess_play/models/chess-grpo-final",
-        'output_dir': "/workspace/chess_play/models/chess-grpo-final-5000",
+        'output_dir': "/workspace/chess_play/models/chess-grpo-final-fixed-reward",
         'train_samples': 15000,  # Start small for testing
         'min_depth': 10,
         'num_epochs': 5,
@@ -171,17 +173,17 @@ def main():
         'mini_batch_size': 1,
         'gradient_accumulation_steps': 4,
         # 'learning_rate': 1e-5,
-        'learning_rate': 3e-5,
+        'learning_rate': 4e-5,
         'max_length': 512,
-        'max_new_tokens': 150,  # Longer for reasoning
-        'temperature': 0.7,
+        'max_new_tokens': 200,  # Longer for reasoning
+        'temperature': 0.3,
         'lora_r': 16,
         'lora_alpha': 32,
         'lora_dropout': 0.1,
         'use_8bit': True,
         'logging_steps': 10,
-        'save_steps': 2000,
-        'total_steps': 10000,
+        'save_steps': 500,
+        'total_steps': 30000,
         'gradient_checkpointing': False,
         'test_dataset_every': 1500,
         'top_testset_to_test': 25,
@@ -241,49 +243,173 @@ def main():
     logger.info("LoRA applied to model")
     model.print_trainable_parameters()
 
-    # Define the reward function wrapper for the trainer
-    # This function follows the documentation requirements with **kwargs
+    # # Define the reward function wrapper for the trainer
+    # # This function follows the documentation requirements with **kwargs
+    # def reward_fn(prompts, completions, **kwargs):
+    #     """
+    #     Reward function that follows GRPO documentation requirements.
+    #     Must accept prompts, completions, and any other dataset columns as **kwargs.
+    #     Returns a list of float rewards.
+    #     """
+    #     rewards = []
+    #     predicted_moves = []
+        
+    #     # Get additional data from kwargs if available
+
+    #     # logger.info(f"Reward function called with {str(kwargs)} prompts")
+        
+    #     fens = kwargs.get('fen', [None] * len(prompts))
+    #     best_moves = kwargs.get('best_move', [None] * len(prompts))
+    #     evaluations = kwargs.get('evaluation', [None] * len(prompts))
+    #     best_lines = kwargs.get('best_line', [None] * len(prompts))
+    #     depths = kwargs.get('depth', [None] * len(prompts))
+
+    #     logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)} \n depths: {str(depths)}")
+
+    #     #TODO: do eval of all legal move and sort here. All fen in fens and best move in best_moves and depth in depths are the same
+        
+    #     for i, (prompt, completion) in enumerate(zip(prompts, completions)):
+    #         ground_truth = {
+    #             'fen': fens[i] if fens[i] is not None else '',
+    #             'best_move': best_moves[i] if best_moves[i] is not None else '',
+    #             'evaluation': evaluations[i] if evaluations[i] is not None else 0,
+    #             'best_line': best_lines[i] if best_lines[i] is not None else '',
+    #             'depth': depths[i] if depths[i] is not None else 15
+    #         }
+    #         reward, predicted_move = chess_reward_function(prompt, completion, ground_truth)
+    #         rewards.append(float(reward))  
+    #         predicted_moves.append(predicted_move)
+
+    #     logger.info(f"reward: {str(rewards)}")
+    #     logger.info(f"predicted moves: {str(predicted_moves)}")
+    #     # Calculate and print the average reward for the current batch
+    #     if rewards:
+    #         avg_reward = sum(rewards) / len(rewards)
+    #         logger.info(f"Batch Average Reward: {avg_reward:.4f}")
+    #     # --- ADDED CODE END ---
+    #     logger.info("--------------------------")
+        
+    #     return rewards
+
+
+
+    def evaluate_all_legal_moves(fen: str, depth: int, stockfish_manager):
+        """Evaluate all legal moves for a position once."""
+        try:
+            board = chess.Board(fen)
+            moving_side = board.turn
+            legal_moves = [board.san(move) for move in board.legal_moves]
+            
+            move_evaluations = []
+            
+            for legal_move_san in legal_moves:
+                test_board = board.copy()
+                try:
+                    move = test_board.parse_san(legal_move_san)
+                    test_board.push(move)
+                    evaluation = stockfish_manager.evaluate_position(test_board.fen(), depth)
+                    
+                    if evaluation is not None:
+                        move_evaluations.append((legal_move_san, evaluation))
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to evaluate move {legal_move_san}: {e}")
+                    continue
+            
+            # Sort moves by evaluation
+            if moving_side == chess.WHITE:
+                move_evaluations.sort(key=lambda x: x[1], reverse=True)
+            else:
+                move_evaluations.sort(key=lambda x: x[1])
+            
+            # Return as dict with rankings
+            result = {}
+            for rank, (move_san, eval_score) in enumerate(move_evaluations, 1):
+                result[move_san] = {
+                    'evaluation': eval_score,
+                    'rank': rank,
+                    'total_moves': len(move_evaluations)
+                }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to evaluate position {fen}: {e}")
+            return {}
+
+
     def reward_fn(prompts, completions, **kwargs):
         """
-        Reward function that follows GRPO documentation requirements.
-        Must accept prompts, completions, and any other dataset columns as **kwargs.
-        Returns a list of float rewards.
+        Reward function with batch optimization for identical positions.
         """
         rewards = []
         predicted_moves = []
         
-        # Get additional data from kwargs if available
-
-        # logger.info(f"Reward function called with {str(kwargs)} prompts")
-        
+        # Get additional data from kwargs
         fens = kwargs.get('fen', [None] * len(prompts))
         best_moves = kwargs.get('best_move', [None] * len(prompts))
         evaluations = kwargs.get('evaluation', [None] * len(prompts))
         best_lines = kwargs.get('best_line', [None] * len(prompts))
-
-        logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)}")
+        depths = kwargs.get('depth', [None] * len(prompts))
+        # logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)} \n depths: {str(depths)} \n eval: {str(evaluations)} \n eval_all_legal : {...}")
         
+        # TODO: do eval of all legal move and sort here. All fen in fens and best move in best_moves and depth in depths are the same
+        stockfish_manager = get_stockfish_manager()
+        if not stockfish_manager.engine:
+            logger.error("Stockfish engine not available")
+            return [0.0] * len(prompts)
+        
+        # Since all positions are identical, evaluate once for the entire batch
+        first_fen = fens[0] if fens[0] else ''
+        first_depth = depths[0] if depths[0] else 15
+        
+        if first_fen:
+            # Evaluate all legal moves once for this position
+            move_evaluations = evaluate_all_legal_moves(first_fen, first_depth, stockfish_manager)
+            logger.info(f"Evaluated {len(move_evaluations)} moves for position")
+            
+            # Extract legal moves and their evaluations for logging
+            all_legal_moves = list(move_evaluations.keys()) if move_evaluations else []
+            eval_scores = {move: data['evaluation'] for move, data in move_evaluations.items()} if move_evaluations else {}
+            
+        else:
+            move_evaluations = {}
+            all_legal_moves = []
+            eval_scores = {}
+        
+        logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)} \n depths: {str(depths)} \n eval: {str(evaluations)} \n all_legal : {all_legal_moves} \n eval_for_all_legal: {eval_scores}")
+        
+        # Process each completion using the same evaluation
         for i, (prompt, completion) in enumerate(zip(prompts, completions)):
             ground_truth = {
                 'fen': fens[i] if fens[i] is not None else '',
                 'best_move': best_moves[i] if best_moves[i] is not None else '',
                 'evaluation': evaluations[i] if evaluations[i] is not None else 0,
-                'best_line': best_lines[i] if best_lines[i] is not None else ''
+                'best_line': best_lines[i] if best_lines[i] is not None else '',
+                'depth': depths[i] if depths[i] is not None else 15
             }
-            reward, predicted_move = chess_reward_function(prompt, completion, ground_truth)
+            
+            # Use the pre-computed evaluations
+            reward, predicted_move = chess_reward_function(
+                prompt, completion, ground_truth, move_evaluations
+            )
             rewards.append(float(reward))  
             predicted_moves.append(predicted_move)
-
+        
         logger.info(f"reward: {str(rewards)}")
         logger.info(f"predicted moves: {str(predicted_moves)}")
-        # Calculate and print the average reward for the current batch
+        
         if rewards:
             avg_reward = sum(rewards) / len(rewards)
             logger.info(f"Batch Average Reward: {avg_reward:.4f}")
-        # --- ADDED CODE END ---
-        logger.info("--------------------------")
         
+        logger.info("--------------------------")
         return rewards
+
+
+
+
+    
 
 
     
@@ -318,13 +444,13 @@ def main():
         reward_funcs=[reward_fn],  
     )
 
-    # Create callback and set trainer reference
-    # callback = RewardEvaluationCallback(test_dataset, tokenizer, call_step=1)
-    callback=RewardEvaluationCallback(test_dataset.select(range(config['top_testset_to_test'])), tokenizer, call_step=config['test_dataset_every'])
-    callback.trainer = grpo_trainer  
+    # # Create callback and set trainer reference
+    # # callback = RewardEvaluationCallback(test_dataset, tokenizer, call_step=1)
+    # callback=RewardEvaluationCallback(test_dataset.select(range(config['top_testset_to_test'])), tokenizer, call_step=config['test_dataset_every'])
+    # callback.trainer = grpo_trainer  
     
-    # Add callback to trainer
-    grpo_trainer.add_callback(callback)
+    # # Add callback to trainer
+    # grpo_trainer.add_callback(callback)
 
 
 

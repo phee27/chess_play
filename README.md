@@ -16,7 +16,7 @@ pip install python-chess
 
 
 # or for downloading llama
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu129
 pip install -r requirements.txt
 
 # authen huggingface

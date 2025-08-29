@@ -74,7 +74,7 @@ class StockfishManager:
             logger.error(f"Failed to initialize Stockfish: {e}")
             self.engine = None
     
-    def evaluate_position(self, fen: str) -> Optional[float]:
+    def evaluate_position(self, fen: str, depth: int) -> Optional[float]:
         """
         Evaluate a chess position using Stockfish
         
@@ -90,14 +90,14 @@ class StockfishManager:
 
         try:
             board = chess.Board(fen)
-            
             # Evaluate current position
             info = self.engine.analyse(
                 board, 
-                chess.engine.Limit(depth=self.depth, time=self.time_limit)
+                chess.engine.Limit(depth=depth, time=self.time_limit)
             )
             
-            score = info["score"].relative
+            # score = info["score"].relative
+            score = info["score"].white()
             
             # Convert score to float (from side-to-move perspective)
             if score.is_mate():
@@ -268,57 +268,199 @@ def extract_reasoning_and_move(response: str) -> tuple[str, str]:
 
 
 
+# def chess_reward_function(
+#     prompt: str, 
+#     response: str, 
+#     ground_truth: Dict[str, Any]):
+#     """
+#     Calculate reward based on ranking of predicted move among all legal moves.
+    
+#     Args:
+#         prompt: The chess position prompt (unused here, but part of the GRPO signature).
+#         response: Model's response containing reasoning and predicted move.
+#         ground_truth: Dictionary with stockfish data (fen, best_move, etc.).
+        
+#     Returns:
+#         Tuple of (reward value, predicted_move)
+#     """
+#     stockfish_manager = get_stockfish_manager()
+#     if not stockfish_manager.engine:
+#         logger.error("Stockfish engine not available, cannot calculate reward.")
+#         return 0.0, None
+    
+#     # 1. Extract necessary data from ground truth and model response
+#     initial_fen = ground_truth.get('fen')
+#     ground_truth_move = ground_truth.get('best_move')
+#     depth = ground_truth.get('depth')
+    
+#     # Extract model's predicted move from its response
+#     _, predicted_move = extract_reasoning_and_move(response)
+    
+#     # Return 0 if missing data
+#     if not initial_fen or not ground_truth_move or not predicted_move:
+#         logger.warning("Missing data for reward calculation.")
+#         return 0.0, None
+    
+#     try:
+#         initial_board = chess.Board(initial_fen)
+#         moving_side = initial_board.turn
+#     except Exception as e:
+#         logger.error(f"Failed to load initial FEN: {e}")
+#         return 0.0, None
+    
+#     # 4. Base reward for passing basic conditions
+#     reward = 1.0
+    
+#     # 5. Check if predicted move is legal
+#     try:
+#         legal_moves = [initial_board.san(move) for move in initial_board.legal_moves]
+#         if predicted_move in legal_moves:
+#             reward += 1.0  # +1 for legal move
+#         else:
+#             logger.warning(f"Illegal move predicted: {predicted_move}")
+#             return reward, predicted_move  # Return current reward without further evaluation
+        
+#     except Exception as e:
+#         logger.warning(f"Failed to check legal moves: {e}")
+#         return reward, predicted_move
+    
+#     # 7. Evaluate all legal moves and rank them
+#     try:
+#         move_evaluations = []
+        
+#         for legal_move_san in legal_moves:
+#             # Create a copy of the board and make the move
+#             test_board = initial_board.copy()
+#             try:
+#                 move = test_board.parse_san(legal_move_san)
+#                 test_board.push(move)
+#                 evaluation = stockfish_manager.evaluate_position(test_board.fen(), depth)
+                
+#                 if evaluation is not None:
+#                     move_evaluations.append((legal_move_san, evaluation))
+                    
+#             except Exception as e:
+#                 logger.warning(f"Failed to evaluate move {legal_move_san}: {e}")
+#                 continue
+        
+#         if not move_evaluations:
+#             logger.warning("No moves could be evaluated")
+#             return reward, predicted_move
+            
+      
+#         # Sort moves by evaluation
+#         if moving_side == chess.WHITE:
+#             # For White: higher evaluation is better (best to worst)
+#             move_evaluations.sort(key=lambda x: x[1], reverse=True)
+#         else:
+#             # For Black: lower evaluation is better (best to worst) 
+#             move_evaluations.sort(key=lambda x: x[1])
+        
+#         # Find rank of predicted move
+#         total_moves = len(move_evaluations)
+#         predicted_rank = None
+        
+#         for i, (move_san, eval_score) in enumerate(move_evaluations):
+#             if move_san == predicted_move:
+#                 predicted_rank = i + 1  # Rank starts from 1 (best move)
+#                 break
+        
+#         if predicted_rank is not None:
+#             # Calculate ranking reward: best move = +10, worst move = +1
+#             # Rank 1 (best) -> +10, Rank N (worst) -> +1
+#             if total_moves == 1:
+#                 ranking_reward = 10.0  # Only one legal move
+#             else:
+#                 # Linear interpolation from 10 (best) to 1 (worst)
+#                 # Formula: 10 - (rank-1) * 9 / (total_moves-1)
+#                 ranking_reward = 10 - ((predicted_rank - 1) * 9.0) / (total_moves - 1)
+            
+#             reward += ranking_reward
+#             if predicted_move == ground_truth_move:
+#                 reward += 5.0 
+#         else:
+#             logger.warning(f"Could not find predicted move {predicted_move} in evaluated moves")
+            
+#     except Exception as e:
+#         logger.error(f"Failed to evaluate and rank moves: {e}")
+#         # Return current reward without ranking bonus
+#         return reward, predicted_move
+    
+#     return reward, predicted_move
+
+
 def chess_reward_function(
     prompt: str, 
     response: str, 
-    ground_truth: Dict[str, Any]
-) -> Tuple[float, str]:
+    ground_truth: Dict[str, Any],
+    move_evaluations: Dict[str, Dict]):
     """
-    Simplified version that focuses mainly on position evaluation.
-    Good for initial experiments to see if the approach works.
-    """
-    stockfish_manager = get_stockfish_manager()
-    if not stockfish_manager.engine:
-        return 0, None
+    Optimized chess reward function that uses pre-computed move evaluations.
     
+    Args:
+        prompt: Chess position prompt
+        response: Model's response
+        ground_truth: Ground truth data
+        move_evaluations: Pre-computed move evaluations and rankings
+        
+    Returns:
+        Tuple of (reward value, predicted_move)
+    """
+    # Extract necessary data
     initial_fen = ground_truth.get('fen')
-    predicted_move = extract_reasoning_and_move(response)[1]
+    ground_truth_move = ground_truth.get('best_move')
+    _, predicted_move = extract_reasoning_and_move(response)
     
-    if not initial_fen or not predicted_move:
-        return 0, None
+    # Return 0 if missing data
+    if not initial_fen or not ground_truth_move or not predicted_move:
+        logger.warning("Missing data for reward calculation.")
+        return 0.0, None
     
     try:
         board = chess.Board(initial_fen)
-        moving_side = board.turn
-        
-        # Check legality
-        move = board.parse_san(predicted_move)
-        if move not in board.legal_moves:
-            return 0, predicted_move
-        
-        # Execute and evaluate
-        board.push(move)
-        final_eval = stockfish_manager.evaluate_position(board.fen())
-        
-        if final_eval is None:
-            return 0, predicted_move
-        
-        # Simple position-based reward
-        if moving_side == chess.WHITE:
-            reward = final_eval / 10.0  # Convert centipawns to pawn units
-        else:
-            reward = -final_eval / 10.0
-        
-        # Small baseline to encourage exploration
-        reward += 0.2
-        
-        return reward, predicted_move
-        
+        legal_moves = [board.san(move) for move in board.legal_moves]
     except Exception as e:
-        logger.warning(f"Simple reward calculation failed: {e}")
-        return 0, predicted_move
-
-
+        logger.error(f"Failed to load initial FEN: {e}")
+        return 0.0, None
+    
+    # Base reward for valid data
+    reward = 1.0
+    
+    # Check if predicted move is legal
+    if predicted_move in legal_moves:
+        reward += 1.0  # +1 for legal move
+    else:
+        logger.warning(f"Illegal move predicted: {predicted_move}")
+        return reward, predicted_move
+    
+    # Use pre-computed evaluations if available
+    if not move_evaluations:
+        logger.warning("No move evaluations available")
+        return reward, predicted_move
+    
+    # Check if predicted move was evaluated
+    if predicted_move not in move_evaluations:
+        logger.warning(f"Predicted move {predicted_move} not in evaluations")
+        return reward, predicted_move
+    
+    # Get ranking information
+    move_info = move_evaluations[predicted_move]
+    predicted_rank = move_info['rank']
+    total_moves = move_info['total_moves']
+    
+    # Calculate ranking reward
+    if total_moves == 1:
+        ranking_reward = 10.0
+    else:
+        ranking_reward = 10 - ((predicted_rank - 1) * 9.0) / (total_moves - 1)
+    
+    reward += ranking_reward
+    
+    # Bonus for matching ground truth
+    if predicted_move == ground_truth_move:
+        reward += 10.0
+    
+    return reward, predicted_move
         
 
 def format_chess_position_for_display(fen: str) -> str:
@@ -339,28 +481,38 @@ def cleanup_stockfish():
 
 if __name__ == "__main__":
     # Test the reward function with the new chess position
+    # sample_data = {
+    #     "fen": "8/4r3/2R2pk1/6pp/3P4/6P1/5K1P/8 b - -",
+    #     "best_move": "Ra7",
+    #     "best_line": "Ra7 Ke3 Ra3+ Ke4 Ra2 h4 gxh4 gxh4 Rh2 Rc1"
+    # }
+
     sample_data = {
-        "fen": "8/4r3/2R2pk1/6pp/3P4/6P1/5K1P/8 b - -",
+        "fen": "8/8/8/3pk3/R3p3/3r4/5K2/8 w - -",
         "best_move": "Ra7",
-        "best_line": "Ra7 Ke3 Ra3+ Ke4 Ra2 h4 gxh4 gxh4 Rh2 Rc1"
+        "best_line": "Ra7 Ke3 Ra3+ Ke4 Ra2 h4 gxh4 gxh4 Rh2 Rc1",
+        # "depth": 42
     }
 
     test_responses = [
-        # Response with the correct best move
-        "<reasoning>This is an endgame position where the rook on c6 is a major threat. I need to get the rook out of the way to alleviate pressure. The best move is to check the king and force an exchange to simplify the position.</reasoning>\n\nBest move: Ra7",
-        # Response with a legal, but likely suboptimal move
-        "Best move: Kg7",
-        # Response with an illegal move
-        "Best move: Rg7",
-        # Response with a malformed move
-        "I will move my king. The best move is: kf7"
+        # "<reasoning>This is an endgame position where the rook on c6 is a major threat. I need to get the rook out of the way to alleviate pressure. The best move is to check the king and force an exchange to simplify the position.</reasoning>\n\nBest move: Ra7",
+        # "Best move: Kg7",
+        # # Response with an illegal move
+        # "Best move: Rg7",
+        # # Response with a malformed move
+        # "I will move my king. The best move is: kf7",
+        "Best move: Ra7\n<reasoning>\nThis is an endgame position where the rook on c6 is a major threat. I need to get the rook out of the way to alleviate pressure. The best move is to check the king and force an exchange to simplify the position.</reasoning>",
     ]
     
     print("Testing reward function:")
+    # for i, response in enumerate(test_responses, 1):
+    #     reward = chess_reward_function("", response, sample_data)
+    #     reasoning, move = extract_reasoning_and_move(response)
+    #     print(f"Test {i}: Move='{move}', Reasoning={len(reasoning)} chars, Reward={reward:.3f}")
     for i, response in enumerate(test_responses, 1):
-        reward = chess_reward_function("", response, sample_data)
+        reward, predicted_move = chess_reward_function("", response, sample_data)  # ✅ Unpack the tuple
         reasoning, move = extract_reasoning_and_move(response)
-        print(f"Test {i}: Move='{move}', Reasoning={len(reasoning)} chars, Reward={reward:.3f}")
+        print(f"Test {i}: Move='{move}', Predicted='{predicted_move}', Reasoning={len(reasoning)} chars, Reward={reward:.3f}")
     
     # Cleanup
     cleanup_stockfish()
