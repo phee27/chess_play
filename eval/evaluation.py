@@ -572,7 +572,7 @@ def main():
     
     # # Option 2: Evaluate fine-tuned checkpoint
     # CHECKPOINT_PATH = "../models/chess-grpo-final-new-reward/checkpoint-1500"  # Update this path
-    CHECKPOINT_PATH = "../models/chess-grpo-final-fixed-reward/checkpoint-500"
+    CHECKPOINT_PATH = "../models/chess-grpo-final-fixed-reward-resume/checkpoint-500"
     evaluator = ChessModelEvaluator(CHECKPOINT_PATH, is_local_checkpoint=True)
     
     try:

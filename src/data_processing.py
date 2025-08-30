@@ -68,27 +68,6 @@ class ChessDataProcessor:
             return False
 
 
-#     def create_chess_prompt(self, fen: str) -> str:
-#         """Create standardized prompt for chess position with structured output"""
-        
-#         # Parse turn info
-#         try:
-#             board = chess.Board(fen)
-#             turn = "White" if board.turn == chess.WHITE else "Black"
-#         except:
-#             turn = "Unknown"
-        
-#         return f"""You are a professional chess grandmaster. Analyze the following position and provide your best move.
-# Position (FEN): {fen}
-# Turn: {turn}
-# Your response MUST follow this EXACT format, without any extra text, PGN, or game history. 
-# Example Format of your response:
-# Best move: [The single best move in Standard Algebraic Notation, e.g., Ra7]
-# <reasoning>
-# [Explain the strategic and tactical reasons for your move. Address the opponent's threats and your own opportunities.]
-# </reasoning>
-# END OF RESPONSE
-# Your response for the given position:"""
 
     def create_chess_prompt(self, fen: str) -> str:
         """Create standardized prompt for chess position with structured output"""
@@ -147,7 +126,7 @@ Your response for the given position:
         Returns:
             train_dataset, val_dataset, test_dataset (test = last 1,000 raw rows)
         """
-        # Step 1: First, collect test set (last 1000 rows) - do this FIRST
+        # Step 1: First, collect test set (last 1000 rows) 
         logger.info("Collecting test set (last 1,000 rows from raw dataset)...")
         
         with open(self.data_path, 'r') as f:
@@ -160,7 +139,6 @@ Your response for the given position:
         with open(self.data_path, 'r') as f:
             for i, line in enumerate(f):
                 if i >= test_start_line:
-                    # Test set: last 1000 rows (minimal filtering, just valid JSON)
                     try:
                         entry = json.loads(line.strip())
                         entry['evaluation'] = self._parse_evaluation(entry['evaluation'])
@@ -174,31 +152,6 @@ Your response for the given position:
         logger.info("Collecting training/validation data...")
         train_val_data = []
         train_val_count = 0
-
-
-        # #TODO: instead of just selecting the first x lines . I want to randomly select anything before test_start_line as training and val
-        # with open(self.data_path, 'r') as f:
-        #     for i, line in enumerate(f):
-        #         # Stop before test set
-        #         if i >= test_start_line:
-        #             break
-                    
-        #         try:
-        #             entry = json.loads(line.strip())
-                    
-        #             # Apply quality filters to training data
-        #             if entry.get('depth', 0) >= self.min_depth:
-        #                 if self._validate_position(entry['fen'], entry['best_move']):
-        #                     entry['evaluation'] = self._parse_evaluation(entry['evaluation'])
-        #                     train_val_data.append(entry)
-        #                     train_val_count += 1
-                            
-        #                     # Stop if we have enough training samples
-        #                     if self.train_samples and train_val_count >= self.train_samples:
-        #                         break
-                                
-        #         except json.JSONDecodeError:
-        #             continue
 
         # Generate random indices to sample from (before test_start_line)
         available_indices = list(range(test_start_line))
@@ -237,10 +190,6 @@ Your response for the given position:
                         continue
         
         logger.info(f"Collected {len(train_val_data)} samples from random sampling")
-
-        
-
-            
         
         # Create DataFrames
         test_df = pd.DataFrame(test_data)
@@ -271,9 +220,6 @@ Your response for the given position:
         train_dataset = Dataset.from_pandas(train_df) if len(train_df) > 0 else Dataset.from_dict({})
         val_dataset = Dataset.from_pandas(val_df) if len(val_df) > 0 else Dataset.from_dict({})
         test_dataset = Dataset.from_pandas(test_df)
-
-  
-        
         return train_dataset, val_dataset, test_dataset
 
 def load_chess_datasets(data_path: str, train_samples: Optional[int] = None, min_depth: int = 10):
