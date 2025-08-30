@@ -27,9 +27,6 @@ from utils import chess_reward_function, get_stockfish_manager, cleanup_stockfis
 import chess
 import chess.engine
 
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
 warnings.filterwarnings("ignore", message=".*Caching is incompatible with gradient checkpointing.*")
 warnings.filterwarnings("ignore", message=".*use_cache=True.*is incompatible with gradient checkpointing.*")
 warnings.filterwarnings("ignore", message=".*None of the inputs have requires_grad=True.*")
@@ -67,7 +64,6 @@ class RewardEvaluationCallback(TrainerCallback):
 
         for i, sample in enumerate(self.test_dataset):
             # Generate a response from the model
-            # Use the model's generate method directly
             input_ids = self.tokenizer(sample['prompt'], return_tensors="pt").input_ids.to(trainer.model.device)
             output_ids = trainer.model.generate(
                 input_ids,
@@ -120,60 +116,26 @@ class RewardEvaluationCallback(TrainerCallback):
         """
         # Check if it's time to evaluate
         if state.global_step > 0 and state.global_step % self.callback_step == 0:
-            # The trainer can be accessed through the model's reference
-            # or we need to store it during initialization
-            # Let's use a different approach - store trainer reference
             if hasattr(self, 'trainer'):
                 self.evaluate_on_test_set(self.trainer)
             else:
                 logger.warning("Trainer reference not available in callback")
 
-                
-            
-# --- Main function call, corrected ---
 def main():
     """
     Main function to run the GRPO training loop.
     """
-    # Simple configuration
-    # config = {
-    #     'model_name': "meta-llama/Llama-3.1-8B-Instruct",
-    #     'data_path': "data/stockfish_evaluations.jsonl",
-    #     'output_dir': "/workspace/chess_play/models/chess-grpo-final",
-    #     'train_samples': 100,  # Start small for testing
-    #     'min_depth': 10,
-    #     'num_epochs': 2,
-    #     'batch_size': 2,
-    #     'mini_batch_size': 1,
-    #     'gradient_accumulation_steps': 4,
-    #     'learning_rate': 1e-5,
-    #     'max_length': 512,
-    #     'max_new_tokens': 150,  # Longer for reasoning
-    #     'temperature': 0.7,
-    #     'lora_r': 16,
-    #     'lora_alpha': 32,
-    #     'lora_dropout': 0.1,
-    #     'use_8bit': True,
-    #     'logging_steps': 10,
-    #     'save_steps': 500,
-    #     'total_steps': 5000 ,
-    #     'gradient_checkpointing': False
-    # }
-
-
     config = {
         'model_name': "meta-llama/Llama-3.1-8B-Instruct",
         'data_path': "data/stockfish_evaluations.jsonl",
-        # 'output_dir': "/workspace/chess_play/models/chess-grpo-final",
-        'output_dir': "/workspace/chess_play/models/chess-grpo-final-fixed-reward",
-        'train_samples': 15000,  # Start small for testing
+        'output_dir': "/workspace/chess_play/models/chess-grpo-finetune",
+        'train_samples': 15000,  
         'min_depth': 10,
         'num_epochs': 5,
         'batch_size': 2,
         'mini_batch_size': 1,
         'gradient_accumulation_steps': 4,
-        # 'learning_rate': 1e-5,
-        'learning_rate': 4e-5,
+        'learning_rate': 4e-6,
         'max_length': 512,
         'max_new_tokens': 200,  # Longer for reasoning
         'temperature': 0.3,
@@ -243,56 +205,6 @@ def main():
     logger.info("LoRA applied to model")
     model.print_trainable_parameters()
 
-    # # Define the reward function wrapper for the trainer
-    # # This function follows the documentation requirements with **kwargs
-    # def reward_fn(prompts, completions, **kwargs):
-    #     """
-    #     Reward function that follows GRPO documentation requirements.
-    #     Must accept prompts, completions, and any other dataset columns as **kwargs.
-    #     Returns a list of float rewards.
-    #     """
-    #     rewards = []
-    #     predicted_moves = []
-        
-    #     # Get additional data from kwargs if available
-
-    #     # logger.info(f"Reward function called with {str(kwargs)} prompts")
-        
-    #     fens = kwargs.get('fen', [None] * len(prompts))
-    #     best_moves = kwargs.get('best_move', [None] * len(prompts))
-    #     evaluations = kwargs.get('evaluation', [None] * len(prompts))
-    #     best_lines = kwargs.get('best_line', [None] * len(prompts))
-    #     depths = kwargs.get('depth', [None] * len(prompts))
-
-    #     logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)} \n depths: {str(depths)}")
-
-    #     #TODO: do eval of all legal move and sort here. All fen in fens and best move in best_moves and depth in depths are the same
-        
-    #     for i, (prompt, completion) in enumerate(zip(prompts, completions)):
-    #         ground_truth = {
-    #             'fen': fens[i] if fens[i] is not None else '',
-    #             'best_move': best_moves[i] if best_moves[i] is not None else '',
-    #             'evaluation': evaluations[i] if evaluations[i] is not None else 0,
-    #             'best_line': best_lines[i] if best_lines[i] is not None else '',
-    #             'depth': depths[i] if depths[i] is not None else 15
-    #         }
-    #         reward, predicted_move = chess_reward_function(prompt, completion, ground_truth)
-    #         rewards.append(float(reward))  
-    #         predicted_moves.append(predicted_move)
-
-    #     logger.info(f"reward: {str(rewards)}")
-    #     logger.info(f"predicted moves: {str(predicted_moves)}")
-    #     # Calculate and print the average reward for the current batch
-    #     if rewards:
-    #         avg_reward = sum(rewards) / len(rewards)
-    #         logger.info(f"Batch Average Reward: {avg_reward:.4f}")
-    #     # --- ADDED CODE END ---
-    #     logger.info("--------------------------")
-        
-    #     return rewards
-
-
-
     def evaluate_all_legal_moves(fen: str, depth: int, stockfish_manager):
         """Evaluate all legal moves for a position once."""
         try:
@@ -351,9 +263,6 @@ def main():
         evaluations = kwargs.get('evaluation', [None] * len(prompts))
         best_lines = kwargs.get('best_line', [None] * len(prompts))
         depths = kwargs.get('depth', [None] * len(prompts))
-        # logger.info(f"fens : {str(fens)} \n best moves: {str(best_moves)} \n depths: {str(depths)} \n eval: {str(evaluations)} \n eval_all_legal : {...}")
-        
-        # TODO: do eval of all legal move and sort here. All fen in fens and best move in best_moves and depth in depths are the same
         stockfish_manager = get_stockfish_manager()
         if not stockfish_manager.engine:
             logger.error("Stockfish engine not available")
@@ -406,13 +315,6 @@ def main():
         logger.info("--------------------------")
         return rewards
 
-
-
-
-    
-
-
-    
     # Create GRPO configuration
     grpo_config = GRPOConfig(
         output_dir=config['output_dir'],
@@ -431,7 +333,6 @@ def main():
         log_completions=True,
         num_completions_to_print=5,
         remove_unused_columns=False,  # Keep all dataset columns for reward function
-        # report_to=[],
         report_to="wandb",
     )
 
@@ -443,15 +344,6 @@ def main():
         train_dataset=train_dataset,  
         reward_funcs=[reward_fn],  
     )
-
-    # # Create callback and set trainer reference
-    # # callback = RewardEvaluationCallback(test_dataset, tokenizer, call_step=1)
-    # callback=RewardEvaluationCallback(test_dataset.select(range(config['top_testset_to_test'])), tokenizer, call_step=config['test_dataset_every'])
-    # callback.trainer = grpo_trainer  
-    
-    # # Add callback to trainer
-    # grpo_trainer.add_callback(callback)
-
 
 
     device = next(model.parameters()).device
