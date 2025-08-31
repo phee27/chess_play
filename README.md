@@ -26,7 +26,7 @@ or
 
 ```pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu129 ```
 
-(Please use this if you use new generation GPU like RTX 5090 (I used this on Runpod))
+(Please use cu129 if you use new generation GPU like RTX 5090 (I used this on Runpod))
 
 ##### Install from requirements file
 ```pip install -r requirements.txt```
@@ -46,6 +46,13 @@ or
 ```apt-get update && apt-get install -y stockfish```
 ##### Find Stockfish installation path
 ```find /usr -name "stockfish" 2>/dev/null```
+
+my result looks like this
+```
+/usr/games/stockfish
+/usr/share/doc/stockfish
+```
+
 ##### Add Stockfish to PATH (adjust path based on find results)
 ```export PATH="/usr/games:$PATH"```
 ##### Test Stockfish installation
@@ -71,7 +78,7 @@ hf download phee27/chess-grpo-llama-8b --include "checkpoint-750/*" --local-dir 
 ```python src/train.py 2>&1 | tee out.logs```
 
 ### 🏃‍♂️ Start evaluating either the base model / trained model on test set (last 1000 rows of the dataset)
-##### Need to comment/uncomment the corresponding section in ```eval/evaluation.py``` to test either base or trained model
+##### Need to comment/uncomment the corresponding section in ```main``` in  ```eval/evaluation.py``` to test either base or trained model
 
 ```
 cd eval
