@@ -7,13 +7,14 @@ Stockfish dataset and Group Relative Policy Optimization (GRPO).
 
 ### 1. Environment Setup
 
-##### Download and install Miniconda
+##### Clone my repo & Download and install Miniconda
 ```
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 source ~/.bashrc
 conda create -n chess-rl python=3.10
 conda activate chess-rl
+cd chess_play
 ```
 
 ### 2. Install Dependencies
@@ -346,9 +347,9 @@ between predicted and ground truth moves.
 ### Key Findings
 
 - **Move Quality**: The fine-tuned model shows significant improvement in move quality, 
-with a 29% reduction in Stockfish MSE, indicating moves that lead to positions much closer to optimal evaluations.
+with a 31.2% reduction in Stockfish MSE, indicating moves that lead to positions much closer to optimal evaluations.
 
-- **Accuracy**: Best move accuracy improved by 37.5% relative to the base model
+- **Accuracy**: Best move accuracy improved by 51.8% relative to the base model (56 to 85 times)
 
 - **Legal Moves**: The illegal moves from fine-tuned is 1/1000 compared to 13/1000 in base model
 
