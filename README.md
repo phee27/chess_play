@@ -346,7 +346,7 @@ between predicted and ground truth moves.
 
 | Metric | Base Model (Llama-3.1-8B-Instruct) | Fine-tuned Model (GRPO Checkpoint-750) | Improvement |
 |--------|-------------------------------------|----------------------------------------|-------------|
-| **Move Accuracy** | 5.6% | 8.5% | +2.9% (+51.8%) |
+| **Move Accuracy** | 5.6% | 8.3% | +2.7% (+48.2%) |
 | **Illegal Moves** | 17 | 1 | -16 |
 | **Stockfish MSE** | 44.64 | 30.70 | -13.94 (-31.2%) |
 | **Test Samples** | 1,000 | 1,000 | - |
@@ -356,7 +356,7 @@ between predicted and ground truth moves.
 - **Move Quality**: The fine-tuned model shows significant improvement in move quality, 
 with a 31.2% reduction in Stockfish MSE, indicating moves that lead to positions much closer to optimal evaluations.
 
-- **Accuracy**: Best move accuracy improved by 51.8% relative to the base model (56 to 85 times)
+- **Accuracy**: Best move accuracy improved by 48.2% relative to the base model (56 to 83 times)
 
 - **Legal Moves**: The number of illegal moves from fine-tuned is 1/1000 compared to 13/1000 in base model 
 
