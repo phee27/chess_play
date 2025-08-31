@@ -336,7 +336,7 @@ between predicted and ground truth moves.
 
 ## Model Performance Comparison
 
-| Metric | Base Model (Llama-3.1-8B-Instruct) | Fine-tuned Model (GRPO Checkpoint-500) | Improvement |
+| Metric | Base Model (Llama-3.1-8B-Instruct) | Fine-tuned Model (GRPO Checkpoint-750) | Improvement |
 |--------|-------------------------------------|----------------------------------------|-------------|
 | **Move Accuracy** | 5.6% | 8.5% | +2.9% (+51.8%) |
 | **Illegal Moves** | 17 | 1 | -16 |
@@ -388,5 +388,5 @@ was limited by computational constraints, but longer training could reveal wheth
 even better chess performance.
 - Enhanced reasoning through annotation: As mentioned previously, I plan to annotate the training dataset with 
 detailed reasoning from foundation models like GPT-4 or Claude. These annotations would explain why specific 
-moves are superior to alternatives, providing richer training signals that could enhance the model's strategic 
+moves are superior to alternatives, providing better training signals that could enhance the model's 
 understanding and decision-making capabilities.
