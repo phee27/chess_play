@@ -288,6 +288,7 @@ This approach enables the model to better understand the position by providing a
 layout of piece placement, making it easier to identify available moves and assess the relative positions 
 of all pieces on the board.
 
+<img width="2528" height="1652" alt="W B Chart 8_30_2025, 10_04_14 PM" src="https://github.com/user-attachments/assets/2f4f7bd9-8769-4444-8149-f74f3484efff" />
 
 ### Benchmark Performance
 
