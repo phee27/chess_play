@@ -1,18 +1,13 @@
-## Core ML libraries
-transformers
-accelerate
-datasets
+accelerate==1.10.1
+bitsandbytes==0.47.0
+datasets==4.0.0
+numpy==2.1.2
+pandas==2.3.2
+peft==0.17.1
+python-chess==1.999
+scikit-learn==1.7.1
+tensorboard==2.20.0
+tqdm==4.67.1
+transformers==4.56.0
 trl==0.21.0
-peft
-bitsandbytes
-
-# Chess-specific
-python-chess
-
-# Additional utilities
-wandb
-numpy
-pandas
-scikit-learn
-tqdm
-tensorboard
+wandb==0.21.3

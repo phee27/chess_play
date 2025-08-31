@@ -21,11 +21,6 @@ model = AutoModelForCausalLM.from_pretrained(
 print(f"Model loaded successfully!")
 print(f"Device: {next(model.parameters()).device}")
 
-# Test with a simple chess prompt
-# test_prompt = """System: You are a chess expert. Given a position, predict the best move.
-# Human: Position (FEN): rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
-# What is the best move?
-# Assistant:"""
 
 test_prompt = """You are a professional chess grandmaster. Analyze the following position and provide your best move.
 
