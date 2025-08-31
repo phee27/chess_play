@@ -70,45 +70,6 @@ print(f"\\n✅ {model_name} setup complete!")
 
 
 
-# messages = [
-#     {"role": "system", "content": "You are a chess expert. Given a position, predict the best move."},
-#     {"role": "user", "content": "Position (FEN): rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1. What is the best next move for black?"}
-# ]
-
-# # Apply chat template
-# test_prompt = tokenizer.apply_chat_template(
-#     messages, 
-#     tokenize=False, 
-#     add_generation_prompt=True
-# )
-
-# print("Generated prompt:")
-# print(test_prompt)
-# print("\n" + "="*50)
-
-# # FIX: Move inputs to the same device as model
-# inputs = tokenizer(test_prompt, return_tensors="pt")
-# device = next(model.parameters()).device
-# inputs = {k: v.to(device) for k, v in inputs.items()}
-
-# print(f"Inputs moved to device: {device}")
-
-# with torch.no_grad():
-#     outputs = model.generate(
-#         inputs['input_ids'],
-#         attention_mask=inputs['attention_mask'],
-#         max_new_tokens=50,
-#         temperature=0.7,
-#         do_sample=True,
-#         pad_token_id=tokenizer.eos_token_id
-#     )
-
-# response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-# print("\nTest Response:")
-# print(response[len(test_prompt):])
-# print("\n✅ Llama-3.2-3B-Instruct setup complete!")
-
-
 
 # Show memory usage
 if torch.cuda.is_available():

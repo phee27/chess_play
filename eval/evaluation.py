@@ -564,7 +564,8 @@ def main():
     DATA_PATH = "../data/stockfish_evaluations.jsonl"  # Path to your raw data
     TEST_CSV_PATH = "test_dataset.csv"  # Will be created/cached in eval/ directory
     SAMPLE_SIZE = 1000 # Number of test positions to evaluate (None for all)
-    
+
+    ##################################################################################
     # Model configuration - choose one:
     
     # Option 1: Evaluate base Llama model
@@ -572,8 +573,9 @@ def main():
     
     # # Option 2: Evaluate fine-tuned checkpoint
     # CHECKPOINT_PATH = "../models/chess-grpo-final-new-reward/checkpoint-1500"  # Update this path
-    CHECKPOINT_PATH = "../models/chess-grpo-final-fixed-reward-resume/checkpoint-500"
+    CHECKPOINT_PATH = "../models/checkpoint-750"
     evaluator = ChessModelEvaluator(CHECKPOINT_PATH, is_local_checkpoint=True)
+    ##################################################################################
     
     try:
         # Run evaluation using your existing infrastructure
