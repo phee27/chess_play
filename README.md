@@ -133,9 +133,9 @@ After testing multiple candidates, I compared Qwen2.5-7B-Instruct and Llama-3.1-
 Based on initial evaluations, 
 Llama-3.1-8B-Instruct consistently outperformed Qwen2.5 in:
 
-Instruction following and format consistency
-Chess reasoning quality and rule comprehension
-Overall task performance
+- Instruction following and format consistency
+- Chess reasoning quality and rule comprehension
+- Overall task performance
 
 Therefore, Llama-3.1-8B-Instruct was selected as the base model for fine-tuning.
 
@@ -211,7 +211,7 @@ that could occur from simply taking the first N rows and promote variety of ches
 The training data is further split with 5% reserved for validation (approximately 750 positions), creating 
 a final distribution of ~14,250 training samples, 750 validation samples, and 1,000 test samples. Each position 
 is converted into a structured prompt that includes the FEN notation, current turn, legal moves list, and visual board 
-representation to provide the model with comprehensive context for move prediction.
+representation to provide the model with comprehensive context for predicting best moves.
 
 
 ### Key decision
@@ -276,17 +276,14 @@ Your response for the given position:
 
 #### 2. Reasoning:
 Since Chess is a complex strategic reasoning task, I write a prompt to model to request explanations of 
-tactical considerations, threat assessment, and strategic opportunities in addition to best move prediction. 
-While the reward function directly evaluates only move quality through Stockfish-based scoring, this reasoning 
+tactical analysis, threat assessment, and strategic opportunities in addition to best move prediction. 
+While the reward function evaluates only move quality through Stockfish-based scoring, this reasoning 
 component serves as an implicit learning mechanism - the model learns to associate good strategic analysis 
-with high-reward moves through the reinforcement learning process. Observation across training epochs demonstrates 
-improvement in reasoning quality, with later iterations producing tactical analyses that align more with sound
-chess principles, suggesting the model successfully internalizes the connection between strategic understanding 
-and optimal play.
+with high-reward moves through the reinforcement learning process. 
 
 #### 3. Providing legal moves:
 I tested the chess task with foundational models like Claude, ChatGPT, and Gemini. Despite their massive size, 
-these models struggle to produce legal moves, let alone best moves. Therefore, I added the legal moves to each prompt 
+these models struggle to produce legal moves in many occasions, let alone best moves. Therefore, I added the legal moves to each prompt 
 during fine-tuning. This tactic simplifies the problem and allows the LLM to focus on selecting the best move 
 from the available legal moves. As discussed in the results section, the performance of fine-tuned models in 
 selecting legal and best moves is significantly better.
@@ -311,13 +308,13 @@ Objective: Measure how close the predicted moves are to optimal play in terms of
 
 Method:
 
-Generate a move prediction for each test position (FEN)
+-Generate a move prediction for each test position (FEN)
 
-Use Stockfish to evaluate the resulting position after applying the predicted move
+-Use Stockfish to evaluate the resulting position after applying the predicted move
 
-Compare this value to the value after applying the ground truth best move
+-Compare this value to the value after applying the ground truth best move
 
-Calculate the mean squared error between these values
+-Calculate the mean squared error between these values
 
 ```
 Formula:
@@ -336,9 +333,10 @@ Objective: Measure exact match rate with Stockfish's top choice.
 Method: 
 
 Count cases where the model's predicted move exactly matches the ground truth best move from the dataset.
-
+```
 Formula:
 Accuracy = (Number of exact matches / Total predictions) × 100%
+```
 Interpretation: Higher accuracy indicates better alignment with engine recommendations.
 
 #### 3. Legal Move Rate
@@ -375,7 +373,7 @@ with a 31.2% reduction in Stockfish MSE, indicating moves that lead to positions
 
 ### Analysis
 
-The GRPO fine-tuning shows clear improvements across all metrics. The most substantial gain is in move quality 
+The GRPO fine-tuning shows clear improvements across all metrics. The most obvious gain is in move quality 
 (MSE reduction), suggesting the model learned to evaluate positions more effectively through the Stockfish-based 
 reward function. It also shows improvements in exact move accuracy and legal move generation, indicating that
  the training successfully enhanced the model's chess playing capabilities.
@@ -389,10 +387,9 @@ area to optimize training and improve the quality of the final model.
 strong emphasis on finding the best move. I would like to explore numerical rewards such as 
 MSE between predicted moves and best moves' Stockfish evaluations, as well as clipping techniques. 
 Furthermore, I want to add more terms to the reward function, such as entropy, to promote diversity 
-in the model's responses. Observing the current model reveals that the base model usually prefers 
-moving pawns over other pieces.
+in the model's responses since the current base model tend to prefer moving pawns over other pieces.
 - Annotate data with more sophisticated reasoning from foundation models: Models under 10B parameters 
-do not have reasoning capabilities on the same level as foundation models. In the future, 
+do not have the same level of reasoning capabilities as foundation models. In the future, 
 I want to annotate the given dataset with sound reasoning from GPT-4 or Claude to explain 
 why the best move is superior to alternatives. This annotated reasoning can be incorporated into 
 the reward function and serve as a valuable signal for model learning.
