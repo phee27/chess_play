@@ -111,8 +111,11 @@ When selecting the base model for fine-tuning, I evaluated candidates against th
 
 Requirements:
 
+
 - Fewer than 10 billion parameters
+  
 - Instruction-tuned for general tasks
+  
 - Not specifically fine-tuned for chess
 
 #### Evaluation Criteria:
@@ -305,12 +308,17 @@ model using three metrics on a test set consisting of the final 1,000 samples fr
 
 #### 1. Move Quality (MSE)
 Objective: Measure how close the predicted moves are to optimal play in terms of positional evaluation.
+
 Method:
 
 Generate a move prediction for each test position (FEN)
+
 Use Stockfish to evaluate the resulting position after applying the predicted move
+
 Compare this value to the value after applying the ground truth best move
+
 Calculate the mean squared error between these values
+
 ```
 Formula:
 MSE = (1/N) × Σ(eval_predicted - eval_best)²
@@ -324,13 +332,18 @@ Interpretation: Lower MSE indicates the model's moves lead to positions with eva
 
 #### 2. Best Move Accuracy
 Objective: Measure exact match rate with Stockfish's top choice.
-Method: Count cases where the model's predicted move exactly matches the ground truth best move from the dataset.
+
+Method: 
+
+Count cases where the model's predicted move exactly matches the ground truth best move from the dataset.
+
 Formula:
 Accuracy = (Number of exact matches / Total predictions) × 100%
 Interpretation: Higher accuracy indicates better alignment with engine recommendations.
 
 #### 3. Legal Move Rate
 Objective: Ensure the model generates valid chess moves.
+
 Method: Parse each predicted move and verify it's legal in the given position using chess rules validation.
 ```
 Formula:
