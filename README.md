@@ -369,7 +369,7 @@ with a 31.2% reduction in Stockfish MSE, indicating moves that lead to positions
 
 - **Accuracy**: Best move accuracy improved by 48.2% relative to the base model (56 to 83 times)
 
-- **Legal Moves**: The number of illegal moves from fine-tuned is 1/1000 compared to 13/1000 in base model 
+- **Legal Moves**: The number of illegal moves from fine-tuned is 1/1000 compared to 17/1000 in base model 
 
 ### Analysis
 
